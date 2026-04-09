@@ -1,0 +1,16 @@
+{
+  "name": "@btcbot/executor",
+  "version": "1.0.1",
+  "private": true,
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "backtest": "node src/scripts/backtest.js"
+  },
+  "dependencies": {
+    "@btcbot/core": "1.0.1",
+    "axios": "^1.14.0",
+    "dotenv": "^16.6.1"
+  }
+}
