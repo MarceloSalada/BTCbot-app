@@ -8,13 +8,15 @@ async function getConfig() {
     stop: process.env.BOT_STOP_LOSS_PCT || '1.5',
     take: process.env.BOT_TAKE_PROFIT_PCT || '3',
     dryRun: process.env.DRY_RUN || 'true',
+    statusJsonUrl: process.env.STATUS_JSON_URL || '',
   };
 }
 
-const mockStatus = {
+const fallbackStatus = {
   updatedAt: 'aguardando bridge',
   tickerPrice: '—',
   latestClose: '—',
+  previousClose: '—',
   shortSma: '—',
   longSma: '—',
   action: 'HOLD',
@@ -22,21 +24,70 @@ const mockStatus = {
   inPosition: false,
   entryPrice: '—',
   realizedPnl: 0,
+  forced: false,
+  quantity: '—',
+  estimatedNotional: '—',
+  minNotionalRequired: '—',
   balances: {
     base: { asset: 'BTC', free: '—' },
     quote: { asset: 'USDT', free: '—' },
   },
 };
 
+function mergeStatus(data) {
+  return {
+    ...fallbackStatus,
+    ...data,
+    balances: {
+      base: {
+        ...fallbackStatus.balances.base,
+        ...(data?.balances?.base || {}),
+      },
+      quote: {
+        ...fallbackStatus.balances.quote,
+        ...(data?.balances?.quote || {}),
+      },
+    },
+  };
+}
+
+async function getStatus() {
+  const url = process.env.STATUS_JSON_URL;
+
+  if (!url) {
+    return fallbackStatus;
+  }
+
+  try {
+    const response = await fetch(url, { cache: 'no-store' });
+
+    if (!response.ok) {
+      return {
+        ...fallbackStatus,
+        reason: `Bridge configurada, mas o JSON remoto respondeu HTTP ${response.status}.`,
+      };
+    }
+
+    const data = await response.json();
+    return mergeStatus(data);
+  } catch {
+    return {
+      ...fallbackStatus,
+      reason: 'Bridge configurada, mas o painel não conseguiu ler o JSON remoto.',
+    };
+  }
+}
+
 export default async function Page() {
   const config = await getConfig();
-  const status = mockStatus;
+  const status = await getStatus();
 
   return (
     <main className="container">
       <div className="badge">BTCbot App</div>
       <h1>Painel pessoal do bot</h1>
       <p>Executor fora da Vercel. Painel web pronto para receber status do bot via bridge.</p>
+
       <section className="grid">
         <div className="card">
           <div className="label">Ativo</div>
@@ -45,6 +96,7 @@ export default async function Page() {
           <div className="kv"><span>Timeframe</span><strong>{config.timeframe}</strong></div>
           <div className="kv"><span>Modo</span><strong>{config.dryRun === 'true' ? 'SEGURO' : 'REAL'}</strong></div>
         </div>
+
         <div className="card">
           <div className="label">Estratégia</div>
           <div className="value">SMA Cross</div>
@@ -53,6 +105,7 @@ export default async function Page() {
           <div className="kv"><span>Stop loss</span><strong>{config.stop}%</strong></div>
           <div className="kv"><span>Take profit</span><strong>{config.take}%</strong></div>
         </div>
+
         <div className="card">
           <div className="label">Status do bot</div>
           <div className="value">{status.action}</div>
@@ -61,25 +114,30 @@ export default async function Page() {
           <div className="kv"><span>Atualizado</span><strong>{status.updatedAt}</strong></div>
         </div>
       </section>
+
       <section className="grid" style={{ marginTop: 16 }}>
         <div className="card">
           <div className="label">Posição</div>
           <div className="value">{status.inPosition ? 'ABERTA' : 'FECHADA'}</div>
           <div className="kv"><span>Entry price</span><strong>{status.entryPrice}</strong></div>
           <div className="kv"><span>PnL realizado</span><strong>{status.realizedPnl}</strong></div>
+          <div className="kv"><span>Sinal</span><strong>{status.forced ? 'FORÇADO' : 'NORMAL'}</strong></div>
         </div>
+
         <div className="card">
           <div className="label">Saldo</div>
           <div className="kv"><span>{status.balances.base.asset}</span><strong>{status.balances.base.free}</strong></div>
           <div className="kv"><span>{status.balances.quote.asset}</span><strong>{status.balances.quote.free}</strong></div>
+          <div className="kv"><span>Notional</span><strong>{status.estimatedNotional}</strong></div>
         </div>
+
         <div className="card">
-          <div className="label">Próxima etapa</div>
-          <div className="kv"><span>Bridge</span><strong>pendente</strong></div>
+          <div className="label">Bridge</div>
+          <div className="kv"><span>STATUS_JSON_URL</span><strong>{config.statusJsonUrl ? 'configurada' : 'não configurada'}</strong></div>
           <div className="kv"><span>Status file</span><strong>apps/executor/status/latest-status.json</strong></div>
           <div className="kv"><span>Motivo</span><strong>{status.reason}</strong></div>
         </div>
       </section>
     </main>
   );
-}
+    }
