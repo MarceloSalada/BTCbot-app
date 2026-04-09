@@ -1,7 +1,7 @@
 const path = require('path');
 const dotenv = require('dotenv');
 
-dotenv.config({ path: path.resolve(process.cwd(), 'apps/executor/.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 function parseBoolean(value, defaultValue = false) {
   if (value === undefined) return defaultValue;
