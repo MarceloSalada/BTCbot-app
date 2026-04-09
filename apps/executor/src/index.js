@@ -1,7 +1,8 @@
-const { buildSignal, canBuy, canSell, computePnl } = require('@btcbot/core');
+const { buildSignal, canBuy, canSell, computePnl } = require('./core');
 const { config, validateConfig } = require('./config/env');
 const logger = require('./utils/logger');
 const { loadState, saveState } = require('./state/store');
+const { writeStatus } = require('./status/store');
 const {
   getKlines,
   getTickerPrice,
@@ -57,6 +58,31 @@ function normalizeQuantity(rawQuantity, lotSizeFilter) {
     quantity: quantityNumber.toFixed(decimals),
     quantityNumber,
   };
+}
+
+function persistStatus({ tickerPrice, signal, state, balances, normalized, estimatedNotional, minNotional }) {
+  writeStatus({
+    updatedAt: new Date().toISOString(),
+    symbol: config.symbol,
+    timeframe: config.timeframe,
+    dryRun: config.dryRun,
+    forceSignal: config.forceSignal,
+    inPosition: state.inPosition,
+    entryPrice: state.entryPrice,
+    realizedPnl: state.realizedPnl,
+    tickerPrice,
+    latestClose: signal.latestClose,
+    previousClose: signal.previousClose,
+    shortSma: Number(signal.shortSma.toFixed(2)),
+    longSma: Number(signal.longSma.toFixed(2)),
+    action: signal.action,
+    reason: signal.reason,
+    forced: signal.forced,
+    quantity: normalized.quantity,
+    estimatedNotional,
+    minNotionalRequired: minNotional,
+    balances,
+  });
 }
 
 async function bootstrap() {
@@ -145,6 +171,8 @@ async function executeCycle() {
       minNotionalRequired: minNotional,
     });
 
+    persistStatus({ tickerPrice, signal, state, balances, normalized, estimatedNotional, minNotional });
+
     if (signal.action === 'HOLD') {
       state.lastPrice = signal.latestClose;
       state.lastSignal = signal.action;
@@ -217,6 +245,7 @@ async function executeCycle() {
     }
 
     saveState(state);
+    persistStatus({ tickerPrice, signal, state, balances, normalized, estimatedNotional, minNotional });
   } catch (error) {
     logger.error('Erro no executor', {
       message: error?.message,
