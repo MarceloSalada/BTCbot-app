@@ -1,0 +1,18 @@
+:root {
+  --bg: #07110b;
+  --panel: #0f1d14;
+  --border: #274634;
+  --text: #e1ffe9;
+  --muted: #98b9a3;
+  --accent: #7dff9d;
+}
+* { box-sizing: border-box; }
+body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: radial-gradient(circle at top, #122419 0%, var(--bg) 55%); color: var(--text); }
+.container { max-width: 1120px; margin: 0 auto; padding: 24px; }
+.card { background: rgba(15, 29, 20, 0.93); border: 1px solid var(--border); border-radius: 18px; padding: 18px; box-shadow: 0 10px 30px rgba(0,0,0,.24); }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+.value { font-size: 28px; font-weight: 700; margin-top: 6px; }
+.badge { display: inline-block; padding: 8px 12px; border: 1px solid var(--border); border-radius: 999px; color: var(--accent); }
+.kv { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid rgba(39,70,52,.45); }
+.kv:last-child { border-bottom: 0; }
