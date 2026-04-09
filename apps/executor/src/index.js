@@ -3,6 +3,7 @@ const { config, validateConfig } = require('./config/env');
 const logger = require('./utils/logger');
 const { loadState, saveState } = require('./state/store');
 const { writeStatus } = require('./status/store');
+const { publishLatestStatus } = require('./services/status-publisher');
 const {
   getKlines,
   getTickerPrice,
@@ -60,7 +61,7 @@ function normalizeQuantity(rawQuantity, lotSizeFilter) {
   };
 }
 
-function persistStatus({ tickerPrice, signal, state, balances, normalized, estimatedNotional, minNotional }) {
+async function persistStatus({ tickerPrice, signal, state, balances, normalized, estimatedNotional, minNotional }) {
   writeStatus({
     updatedAt: new Date().toISOString(),
     symbol: config.symbol,
@@ -83,6 +84,17 @@ function persistStatus({ tickerPrice, signal, state, balances, normalized, estim
     minNotionalRequired: minNotional,
     balances,
   });
+
+  const publishResult = await publishLatestStatus(logger);
+
+  if (!publishResult.skipped) {
+    logger.info('Publicação do status remoto', {
+      ok: publishResult.ok,
+      mode: publishResult.mode || 'none',
+      publicUrl: publishResult.publicUrl || '',
+      reason: publishResult.reason || 'publicado',
+    });
+  }
 }
 
 async function bootstrap() {
@@ -171,7 +183,7 @@ async function executeCycle() {
       minNotionalRequired: minNotional,
     });
 
-    persistStatus({ tickerPrice, signal, state, balances, normalized, estimatedNotional, minNotional });
+    await persistStatus({ tickerPrice, signal, state, balances, normalized, estimatedNotional, minNotional });
 
     if (signal.action === 'HOLD') {
       state.lastPrice = signal.latestClose;
@@ -245,7 +257,7 @@ async function executeCycle() {
     }
 
     saveState(state);
-    persistStatus({ tickerPrice, signal, state, balances, normalized, estimatedNotional, minNotional });
+    await persistStatus({ tickerPrice, signal, state, balances, normalized, estimatedNotional, minNotional });
   } catch (error) {
     logger.error('Erro no executor', {
       message: error?.message,
